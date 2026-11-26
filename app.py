@@ -44,9 +44,15 @@ def detect_silences(filepath, threshold=-30, min_duration=0.5):
         '-f', 'null', '-'
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
-    output = result.stderr
+    silences = parse_silencedetect_output(result.stderr)
+    if silences and silences[-1][1] is None:
+        start, _ = silences[-1]
+        silences[-1] = (start, get_video_duration(filepath))
+    return silences
 
-    # Parse silence_start and silence_end from ffmpeg output
+
+def parse_silencedetect_output(output):
+    """Return (start, end) pairs, leaving a trailing open silence for the caller."""
     silence_starts = re.findall(r'silence_start: ([\d.]+)', output)
     silence_ends = re.findall(r'silence_end: ([\d.]+)', output)
 
@@ -58,8 +64,7 @@ def detect_silences(filepath, threshold=-30, min_duration=0.5):
 
     # If there's an unmatched silence_start at the end (silence till end of video)
     if len(silence_starts) > len(silence_ends):
-        duration = get_video_duration(filepath)
-        silences.append((float(silence_starts[-1]), duration))
+        silences.append((float(silence_starts[-1]), None))
 
     return silences
 
@@ -74,24 +79,18 @@ def compute_non_silent_intervals(silences, total_duration, padding=0.1):
 
     non_silent = []
 
-    # Before first silence
-    first_silence_start = silences[0][0]
-    if first_silence_start > 0:
-        end = min(first_silence_start + padding, silences[0][1])
-        non_silent.append((0, end))
-
-    # Between silences
-    for i in range(len(silences) - 1):
-        start = max(silences[i][1] - padding, silences[i][0])
-        end = min(silences[i + 1][0] + padding, silences[i + 1][1])
-        if start < end:
-            non_silent.append((start, end))
-
-    # After last silence
-    last_silence_end = silences[-1][1]
-    if last_silence_end < total_duration:
-        start = max(last_silence_end - padding, silences[-1][0])
-        non_silent.append((start, total_duration))
+    previous_end = 0
+    # Include the end of the video to handle the last gap like every other gap.
+    for silence_start, silence_end in [*silences, (total_duration, total_duration)]:
+        start = max(0, previous_end - padding)
+        end = min(total_duration, silence_start + padding)
+        if previous_end < silence_start and start < end:
+            if non_silent and start <= non_silent[-1][1]:
+                # Padded segments that overlap must only be played once.
+                non_silent[-1] = (non_silent[-1][0], end)
+            else:
+                non_silent.append((start, end))
+        previous_end = max(previous_end, silence_end)
 
     return non_silent
 
