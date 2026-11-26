@@ -59,8 +59,18 @@ The `uploads/`, `temp/`, and `outputs/` directories are created automatically wh
 - `GET /download/<filename>` — downloads a processed video.
 - `POST /cleanup/<filename>` — deletes a processed video after it is no longer needed.
 
+## Tests
+
+From the project directory, with the virtual environment above active:
+
+```bash
+python -m pip install pytest
+python -m pytest
+```
+
+The tests cover silence detection output and interval calculations without running FFmpeg.
+
 ## Notes
 
 - Input is limited to MP4 files by the interface and upload route.
 - FFmpeg stream copy is attempted for cutting and concatenation; if concatenation fails, the app attempts an H.264/AAC re-encode.
-- There is no automated test suite configured in this repository.
