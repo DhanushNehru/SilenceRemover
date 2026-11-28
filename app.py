@@ -4,6 +4,7 @@ import uuid
 import subprocess
 import shutil
 import json
+import math
 from flask import Flask, request, render_template, send_file, jsonify
 
 app = Flask(__name__)
@@ -178,9 +179,31 @@ def upload():
         return jsonify({'error': 'Only MP4 files are supported'}), 400
 
     # Get parameters from form
-    threshold = float(request.form.get('threshold', -30))
-    min_duration = float(request.form.get('min_duration', 0.5))
-    padding = float(request.form.get('padding', 0.1))
+    try:
+        threshold = float(request.form.get('threshold', -30))
+        min_duration = float(request.form.get('min_duration', 0.5))
+        padding = float(request.form.get('padding', 0.1))
+    except ValueError:
+        return jsonify({'error': 'Invalid numeric parameters'}), 400
+
+    # Validate that all parameters are finite
+    if not all(math.isfinite(v) for v in
+               (threshold, min_duration, padding)):
+        return jsonify({'error': 'Parameters must be finite numbers'}), 400
+
+    # Validate parameter range
+    if threshold < -90 or threshold > 0:
+        return jsonify({
+            'error': 'Threshold must be between -90 and 0 dB'
+        }), 400
+    if min_duration <= 0:
+        return jsonify({
+            'error': 'Minimum silence duration must be greater than 0'
+        }), 400
+    if padding < 0:
+        return jsonify({
+            'error': 'Padding must be non-negative'
+        }), 400
 
     # Generate unique job ID
     job_id = str(uuid.uuid4())[:8]
