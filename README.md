@@ -63,4 +63,19 @@ The `uploads/`, `temp/`, and `outputs/` directories are created automatically wh
 
 - Input is limited to MP4 files by the interface and upload route.
 - FFmpeg stream copy is attempted for cutting and concatenation; if concatenation fails, the app attempts an H.264/AAC re-encode.
-- There is no automated test suite configured in this repository.
+
+## Testing
+
+Install the test dependency:
+
+```bash
+python -m pip install pytest
+```
+
+Run the regression tests:
+
+```bash
+python -m pytest tests/ -v
+```
+
+The upload tests cover invalid numeric inputs, non-finite values, parameter ranges, valid boundary values, default parameters, and early rejection of invalid requests.
